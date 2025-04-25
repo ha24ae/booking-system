@@ -25,10 +25,10 @@ public class ClinicBookingSystem {
             System.out.println("3. Book Appointment by Searching Physiotherapist Name");
             System.out.println("4. Change Appointment");
             System.out.println("5. Cancel Appointment");
-//            System.out.println("6. Attend Appointment");
-            System.out.println("6. Delete Patient");
-//            System.out.println("8. Generate End-of-Term Report");
-            System.out.println("7. Exit");
+            System.out.println("6. Attend Appointment");
+            System.out.println("7. Delete Patient");
+            System.out.println("8. Generate End-of-Term Report");
+            System.out.println("9. Exit");
             System.out.print("Please select an option: ");
 
             int choice = scanner.nextInt();
@@ -40,10 +40,10 @@ public class ClinicBookingSystem {
                 case 3 -> system.searchByPhysiotherapistName(scanner);
                 case 4 -> system.changeAppointment(scanner);
                 case 5 -> system.cancelAppointment(scanner);
-//                case 6 -> system.attendAppointment(scanner);
-                case 6 -> system.deletePatientById(scanner);
-//                case 8 -> system.generateReport();
-                case 7 -> running = false;
+                case 6 -> system.attendAppointment(scanner);
+                case 7 -> system.deletePatientById(scanner);
+                case 8 -> system.generateReport();
+                case 9 -> running = false;
                 default -> System.out.println("Invalid choice. Try again.");
             }
         }
@@ -423,10 +423,84 @@ public class ClinicBookingSystem {
             System.out.println("Appointment not found or already cancelled.");
             return;
         }
-        appointments.remove(appointmentToCancel);
+//        appointments.remove(appointmentToCancel);
         appointmentToCancel.getSlot().setBooked(false);
         appointmentToCancel.setStatus(Appointment.Status.CANCELLED);
 
         System.out.println("Appointment cancelled successfully. Booking ID: " + appointmentToCancel.getId());
+    }
+
+    public void attendAppointment(Scanner scanner) {
+        System.out.print("Enter Booking ID to mark as attended: ");
+        String bookingId = scanner.nextLine();
+
+        Appointment appointment = appointments.stream()
+                .filter(a -> a.getId().equalsIgnoreCase(bookingId))
+                .findFirst()
+                .orElse(null);
+
+        if (appointment == null) {
+            System.out.println("Appointment not found.");
+            return;
+        }
+
+        if (appointment.getStatus() == Appointment.Status.CANCELLED) {
+            System.out.println("This appointment was cancelled and cannot be attended.");
+            return;
+        }
+
+        if (appointment.getStatus() == Appointment.Status.ATTENDED) {
+            System.out.println("This appointment has already been attended.");
+            return;
+        }
+
+        appointment.setStatus(Appointment.Status.ATTENDED);
+        System.out.println("Appointment marked as attended. Thank you!");
+    }
+
+    public void generateReport() {
+        System.out.println("\n--- End of Term Report ---");
+
+        // Map to count attended appointments per physiotherapist
+        Map<Physiotherapist, Integer> attendedCounts = new HashMap<>();
+
+        for (Physiotherapist physio : physiotherapists) {
+            System.out.println("\nPhysiotherapist: " + physio.getName());
+            boolean hasAppointments = false;
+
+            for (Appointment appt : appointments) {
+                if (physio.getSlots().contains(appt.getSlot())) {
+                    hasAppointments = true;
+                    String treatmentName = appt.getSlot().getTreatment().getName();
+                    String patientName = appt.getPatient().getName();
+                    String time = appt.getSlot().getFullTime();
+                    String status = appt.getStatus().toString();
+
+                    System.out.printf("  Treatment: %-35s | Patient: %-20s | Time: %-20s | Status: %s%n",
+                            treatmentName, patientName, time, status);
+
+                    if (appt.getStatus() == Appointment.Status.ATTENDED) {
+                        attendedCounts.put(physio, attendedCounts.getOrDefault(physio, 0) + 1);
+                    }
+                }
+            }
+
+            if (!hasAppointments) {
+                System.out.println("  No appointments.");
+            }
+        }
+
+        System.out.println("\n--- Physiotherapists by Number of Attended Appointments ---");
+
+        physiotherapists.stream()
+                .sorted((a, b) -> {
+                    int countA = attendedCounts.getOrDefault(a, 0);
+                    int countB = attendedCounts.getOrDefault(b, 0);
+                    return Integer.compare(countB, countA);
+                })
+                .forEach(p -> {
+                    int attended = attendedCounts.getOrDefault(p, 0);
+                    System.out.printf("  %s - %d attended appointment(s)%n", p.getName(), attended);
+                });
     }
 }
