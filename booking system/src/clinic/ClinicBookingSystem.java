@@ -23,12 +23,12 @@ public class ClinicBookingSystem {
             System.out.println("1. Add New Patient");
             System.out.println("2. Book Appointment by Searching Expertise,");
             System.out.println("3. Book Appointment by Searching Physiotherapist Name");
-//            System.out.println("4. Change Appointment");
-//            System.out.println("5. Cancel Appointment");
+            System.out.println("4. Change Appointment");
+            System.out.println("5. Cancel Appointment");
 //            System.out.println("6. Attend Appointment");
-            System.out.println("4. Delete Patient");
+            System.out.println("6. Delete Patient");
 //            System.out.println("8. Generate End-of-Term Report");
-            System.out.println("5. Exit");
+            System.out.println("7. Exit");
             System.out.print("Please select an option: ");
 
             int choice = scanner.nextInt();
@@ -38,12 +38,12 @@ public class ClinicBookingSystem {
                 case 1 -> system.addPatientInteractive(scanner);
                 case 2 -> system.searchByExpertise(scanner);
                 case 3 -> system.searchByPhysiotherapistName(scanner);
-//                case 4 -> system.changeAppointment(scanner);
-//                case 5 -> system.cancelAppointment(scanner);
+                case 4 -> system.changeAppointment(scanner);
+                case 5 -> system.cancelAppointment(scanner);
 //                case 6 -> system.attendAppointment(scanner);
-                case 4 -> system.deletePatientById(scanner);
+                case 6 -> system.deletePatientById(scanner);
 //                case 8 -> system.generateReport();
-                case 5 -> running = false;
+                case 7 -> running = false;
                 default -> System.out.println("Invalid choice. Try again.");
             }
         }
@@ -52,12 +52,12 @@ public class ClinicBookingSystem {
     }
 
     public void initialiseTestData() {
-        //areas of expertise
+        //3 areas of expertise
         AreaOfExpertise physioArea = new AreaOfExpertise("Physiotherapy");
         AreaOfExpertise osteoArea = new AreaOfExpertise("Osteopathy");
         AreaOfExpertise rehabArea = new AreaOfExpertise("Rehabilitation");
 
-        // treatments
+        //5 treatments
         Treatment massage = new Treatment("Treatment Massage", physioArea);
         Treatment neuralMobilisation = new Treatment("Treatment Neural mobilisation", physioArea);
         Treatment mobilisationOfSpineAndJoints = new Treatment("Treatment Mobilisation of the spine and joint", osteoArea);
@@ -77,13 +77,13 @@ public class ClinicBookingSystem {
         Physiotherapist physio4 = new Physiotherapist("PH4", "Dr. Carter Fiz", "Wellness St", "0800000001");
         physio4.addAreaOfExpertise(physioArea);
 
-        //physiotherapists
+        //4 physiotherapists
         physiotherapists.add(physio1);
         physiotherapists.add(physio2);
         physiotherapists.add(physio3);
         physiotherapists.add(physio4);
 
-        //some patients
+        //10 patients
         patients.add(new Patient("P1", "Anna Blue", "12 Elm St", "0700000111"));
         patients.add(new Patient("P2", "Jake Green", "34 Oak St", "0700000222"));
         patients.add(new Patient("P3", "Hanna Purple", "2 Ark St", "0700000333"));
@@ -104,7 +104,7 @@ public class ClinicBookingSystem {
         LocalDate start = LocalDate.of(2025, 5, 1);  // Starting from 1st May 2025
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy");
 
-        // Step 1: Generate 8 dates (Mondays & Wednesdays only)
+        //8 dates (Mondays & Wednesdays)
         List<LocalDate> treatmentDates = new ArrayList<>();
         LocalDate current = start;
         while (treatmentDates.size() < totalAppointments) {
@@ -115,9 +115,8 @@ public class ClinicBookingSystem {
             current = current.plusDays(1);
         }
 
-        // Step 2: Assign one treatment per slot per physio
+        //one treatment per slot per physio
         for (Physiotherapist physio : physiotherapists) {
-            // Gather all treatments across their areas
             List<Treatment> allTreatments = new ArrayList<>();
             for (AreaOfExpertise area : physio.getAreasOfExpertise()) {
                 allTreatments.addAll(area.getTreatments());
@@ -127,19 +126,18 @@ public class ClinicBookingSystem {
             int timeIndex = 0;
 
             for (LocalDate date : treatmentDates) {
-                // Only one treatment per time per physio
+                //one treatment per time per physio
                 if (allTreatments.isEmpty()) continue;
 
                 Treatment currentTreatment = allTreatments.get(treatmentIndex % allTreatments.size());
 
-                // Build start and end times for the treatment slot using LocalDateTime
+                //start and end times for the treatment slot using LocalDateTime
                 String timeRange = times[timeIndex % times.length];
                 String[] timeParts = timeRange.split("-");
 
                 LocalDateTime startTime = LocalDateTime.of(date, LocalTime.parse(timeParts[0]));
                 LocalDateTime endTime = LocalDateTime.of(date, LocalTime.parse(timeParts[1]));
 
-                // Create TreatmentSlot with LocalDateTime values
                 TreatmentSlot slot = new TreatmentSlot(startTime, endTime, currentTreatment);
                 physio.addSlot(slot);
 
@@ -332,11 +330,103 @@ public class ClinicBookingSystem {
             if (appointment.getPatient().equals(patient)) {
                 LocalDateTime existingAppointmentTime = appointment.getSlot().getStartTime();
                 if (existingAppointmentTime.equals(slotStartTime)) {
-                    return true;  // Conflict found
+                    return true;
                 }
             }
         }
-        return false;  // No conflict
+        return false;
     }
 
+    public void changeAppointment(Scanner scanner) {
+        System.out.print("Enter Booking ID to change: ");
+        String bookingId = scanner.nextLine();
+
+        Appointment oldAppointment = appointments.stream()
+                .filter(a -> a.getId().equalsIgnoreCase(bookingId))
+                .findFirst()
+                .orElse(null);
+
+        if (oldAppointment == null || oldAppointment.getStatus() == Appointment.Status.CANCELLED) {
+            System.out.println("Appointment not found or already cancelled.");
+            return;
+        }
+
+        Patient patient = oldAppointment.getPatient();
+        String expertise = oldAppointment.getSlot().getTreatment().getArea().getName();
+
+        Map<Integer, TreatmentSlot> availableSlots = new LinkedHashMap<>(); //available slots for the same expertise
+        int index = 1;
+
+        for (Physiotherapist physio : physiotherapists) {
+            for (TreatmentSlot slot : physio.getSlots()) {
+                if (!slot.isBooked() &&
+                        slot.getTreatment().getArea().getName().equalsIgnoreCase(expertise)) {
+
+                    availableSlots.put(index, slot);
+                    System.out.printf("%d. %s - %s (%s)\n", index, physio.getName(),
+                            slot.getFullTime(), slot.getTreatment().getName());
+                    index++;
+                }
+            }
+        }
+
+        if (availableSlots.isEmpty()) {
+            System.out.println("No available slots for this expertise.");
+            return;
+        }
+
+        System.out.print("Select a new slot number: ");
+        int newSlotIndex = Integer.parseInt(scanner.nextLine());
+        TreatmentSlot newSlot = availableSlots.get(newSlotIndex);
+
+        if (newSlot == null || newSlot.isBooked()) {
+            System.out.println("This slot is already booked. Please select another one.");
+            return;
+        }
+
+        //checking if conflict with existing patient appointments
+        if (hasPatientConflict(patient, newSlot.getStartTime(), oldAppointment)) {
+            System.out.println("Conflict detected! You already have an appointment at that time.");
+            return;
+        }
+
+        oldAppointment.getSlot().setBooked(false); //will release old slot and assign new one
+        newSlot.setBooked(true);
+        oldAppointment.setSlot(newSlot);
+        oldAppointment.setStatus(Appointment.Status.BOOKED);
+
+        System.out.println("Appointment successfully changed. Booking ID remains: " + oldAppointment.getId());
+    }
+
+    public boolean hasPatientConflict(Patient patient, LocalDateTime slotStartTime, Appointment toIgnore) {
+        for (Appointment appointment : appointments) {
+            if (appointment.equals(toIgnore)) continue; //will ignore the appointment being updated unlike other method
+            if (appointment.getPatient().equals(patient)) {
+                if (appointment.getSlot().getStartTime().equals(slotStartTime)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public void cancelAppointment(Scanner scanner) {
+        System.out.print("Enter Booking ID to cancel: ");
+        String bookingId = scanner.nextLine();
+
+        Appointment appointmentToCancel = appointments.stream()
+                .filter(a -> a.getId().equalsIgnoreCase(bookingId))
+                .findFirst()
+                .orElse(null);
+
+        if (appointmentToCancel == null || appointmentToCancel.getStatus() == Appointment.Status.CANCELLED) {
+            System.out.println("Appointment not found or already cancelled.");
+            return;
+        }
+        appointments.remove(appointmentToCancel);
+        appointmentToCancel.getSlot().setBooked(false);
+        appointmentToCancel.setStatus(Appointment.Status.CANCELLED);
+
+        System.out.println("Appointment cancelled successfully. Booking ID: " + appointmentToCancel.getId());
+    }
 }
