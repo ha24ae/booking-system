@@ -1,5 +1,4 @@
 package clinic;
-
 import java.util.ArrayList;
 import java.util.List;
 

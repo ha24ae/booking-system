@@ -1,5 +1,4 @@
 package clinic;
-
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
@@ -15,6 +14,7 @@ public class TreatmentSlot {
         this.treatment = treatment;
         this.isBooked = false;
     }
+
     public LocalDateTime getStartTime() {
         return startTime;
     }
@@ -22,6 +22,7 @@ public class TreatmentSlot {
     public LocalDateTime getEndTime() {
         return endTime;
     }
+
     public boolean isBooked() {
         return isBooked;
     }
@@ -33,10 +34,17 @@ public class TreatmentSlot {
     public Treatment getTreatment() {
         return treatment;
     }
+
     public String getFullTime() {
         return startTime.format(DateTimeFormatter.ofPattern("EEEE dd MMM yyyy HH:mm")) + " - " + endTime.format(DateTimeFormatter.ofPattern("HH:mm"));
     }
+
     public String getTime() {
         return startTime + " - " + endTime;
+    }
+
+    @Override
+    public String toString() {
+        return treatment.getName() + " at " + getFullTime() + (isBooked ? " [BOOKED]" : "");
     }
 }

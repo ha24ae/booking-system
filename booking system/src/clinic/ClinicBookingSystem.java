@@ -21,14 +21,14 @@ public class ClinicBookingSystem {
         while (running) {
             System.out.println("\n *** Boost Physio Clinic ***");
             System.out.println("1. Add New Patient");
-//            System.out.println("2. Book Appointment by Searching Expertise,");
-//            System.out.println("3. Book Appointment by Searching Physiotherapist Name");
+            System.out.println("2. Book Appointment by Searching Expertise,");
+            System.out.println("3. Book Appointment by Searching Physiotherapist Name");
 //            System.out.println("4. Change Appointment");
 //            System.out.println("5. Cancel Appointment");
 //            System.out.println("6. Attend Appointment");
-            System.out.println("2. Delete Patient");
+            System.out.println("4. Delete Patient");
 //            System.out.println("8. Generate End-of-Term Report");
-            System.out.println("3. Exit");
+            System.out.println("5. Exit");
             System.out.print("Please select an option: ");
 
             int choice = scanner.nextInt();
@@ -36,14 +36,14 @@ public class ClinicBookingSystem {
 
             switch (choice) {
                 case 1 -> system.addPatientInteractive(scanner);
-//                case 2 -> system.searchByExpertise(scanner);
-//                case 3 -> system.searchByPhysiotherapistName(scanner);
+                case 2 -> system.searchByExpertise(scanner);
+                case 3 -> system.searchByPhysiotherapistName(scanner);
 //                case 4 -> system.changeAppointment(scanner);
 //                case 5 -> system.cancelAppointment(scanner);
 //                case 6 -> system.attendAppointment(scanner);
-                case 2 -> system.deletePatientById(scanner);
+                case 4 -> system.deletePatientById(scanner);
 //                case 8 -> system.generateReport();
-                case 3 -> running = false;
+                case 5 -> running = false;
                 default -> System.out.println("Invalid choice. Try again.");
             }
         }
@@ -189,4 +189,154 @@ public class ClinicBookingSystem {
     public Patient findPatientById(String id) {
         return patients.stream().filter(p -> p.getId().equalsIgnoreCase(id)).findFirst().orElse(null);
     }
+
+    public void searchByExpertise(Scanner scanner) {
+        System.out.println("Enter area of expertise (Physiotherapy/Osteopathy/Rehabilitation):");
+        String expertise = scanner.nextLine();
+
+        List<TreatmentSlot> matchingSlots = new ArrayList<>();
+        Map<Integer, TreatmentSlot> slotMap = new LinkedHashMap<>();
+        int index = 1;
+
+        for (Physiotherapist physio : physiotherapists) {
+            for (TreatmentSlot slot : physio.getSlots()) {
+                if (!slot.isBooked() &&
+                        slot.getTreatment().getArea().getName().equalsIgnoreCase(expertise)) {
+
+                    matchingSlots.add(slot);
+                    slotMap.put(index, slot);
+
+                    System.out.printf("%d.  %s - %s (%s)\n", //[%s]
+                            index,
+                            //physio.getId(),
+                            physio.getName(),
+                            slot.getFullTime(),
+                            slot.getTreatment().getName());
+                    index++;
+                }
+            }
+        }
+
+        if (matchingSlots.isEmpty()) {
+            System.out.println("No available slots found for the given expertise.");
+            return;
+        }
+
+        System.out.print("Select a slot number to book: ");
+        int selectedIndex = Integer.parseInt(scanner.nextLine());
+
+        TreatmentSlot selectedSlot = slotMap.get(selectedIndex);
+        if (selectedSlot == null) {
+            System.out.println("Invalid selection.");
+            return;
+        }
+
+        System.out.print("Enter Patient ID to book appointment: ");
+        String patientId = scanner.nextLine();
+        Patient patient = findPatientById(patientId);
+        if (patient == null) {
+            System.out.println("Patient not found.");
+            return;
+        }
+
+        LocalDateTime slotStartTime = selectedSlot.getStartTime();
+
+        if (hasPatientConflict(patient, slotStartTime)) {
+            System.out.println("Patient already has an appointment at this time.");
+            return;
+        }
+
+        selectedSlot.setBooked(true);
+
+        Physiotherapist physio = physiotherapists.stream()
+                .filter(p -> p.getSlots().contains(selectedSlot))
+                .findFirst()
+                .orElse(null);
+
+        if (physio == null) {
+            System.out.println("Physiotherapist not found for selected slot.");
+            return;
+        }
+
+        Appointment appointment = new Appointment(patient, selectedSlot);
+
+        appointments.add(appointment);
+        System.out.println("Appointment booked successfully.");
+        System.out.println("Your Booking ID is: " + appointment.getId());
+
+    }
+
+    public void searchByPhysiotherapistName(Scanner scanner) {
+        System.out.println("Enter physiotherapist name (Dr. Alice Luke/Dr. Mark Kite/Dr. Liv Bike/Dr. Carter Fiz):");
+        String name = scanner.nextLine().trim();
+        boolean found = false;
+
+        for (Physiotherapist physio : physiotherapists) {
+            if (physio.getName().equalsIgnoreCase(name)) {
+                found = true;
+                List<TreatmentSlot> availableSlots = physio.getSlots().stream()
+                        .filter(slot -> !slot.isBooked())
+                        .toList();
+
+                if (availableSlots.isEmpty()) {
+                    System.out.println("No available slots for this physiotherapist.");
+                    return;
+                }
+
+                for (int i = 0; i < availableSlots.size(); i++) {
+                    System.out.println((i + 1) + ". " + availableSlots.get(i));
+                }
+
+                System.out.print("Enter the number of the slot you'd like to book: ");
+                int slotIndex = scanner.nextInt() - 1;
+                scanner.nextLine();
+
+                if (slotIndex < 0 || slotIndex >= availableSlots.size()) {
+                    System.out.println("Invalid selection.");
+                    return;
+                }
+
+                TreatmentSlot selectedSlot = availableSlots.get(slotIndex);
+                System.out.print("Enter Patient ID to book appointment: ");
+                String patientId = scanner.nextLine();
+                Patient patient = findPatientById(patientId);
+
+                if (patient == null) {
+                    System.out.println("Patient not found.");
+                    return;
+                }
+                LocalDateTime slotStartTime = selectedSlot.getStartTime();
+
+                if (hasPatientConflict(patient, slotStartTime)) { // this will check for patient conflict based on the start time
+                    System.out.println("Patient already has an appointment at this time.");
+                    return;
+                }
+
+                selectedSlot.setBooked(true);
+                Appointment appointment = new Appointment(patient, selectedSlot);
+                appointments.add(appointment);
+                System.out.println("Appointment booked successfully.");
+                System.out.println("Your Booking ID is: " + appointment.getId());
+
+            }
+        }
+        // System.out.println("Physiotherapist not found.");
+        if (!found) {
+            System.out.println("Physiotherapist not found.");
+        }
+    }
+
+    public boolean hasPatientConflict(Patient patient, LocalDateTime slotStartTime) {
+
+        for (Appointment appointment : appointments) {   // Check if the patient has an existing appointment at the same time
+            if (appointment.getPatient().equals(patient)) {
+                LocalDateTime existingAppointmentTime = appointment.getSlot().getStartTime();
+                if (existingAppointmentTime.equals(slotStartTime)) {
+                    return true;  // Conflict found
+                }
+            }
+        }
+        return false;  // No conflict
+    }
+
 }
