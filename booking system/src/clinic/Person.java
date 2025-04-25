@@ -14,7 +14,7 @@ public class Person {
     }
 
     public String getName() {
-        return fullName; 
+        return fullName;
     }
 
     public String toString() {
