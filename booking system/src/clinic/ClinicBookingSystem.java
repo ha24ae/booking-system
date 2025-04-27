@@ -503,4 +503,7 @@ public class ClinicBookingSystem {
                     System.out.printf("  %s - %d attended appointment(s)%n", p.getName(), attended);
                 });
     }
+    public List<Patient> getPatients() {
+        return patients;
+    }
 }
